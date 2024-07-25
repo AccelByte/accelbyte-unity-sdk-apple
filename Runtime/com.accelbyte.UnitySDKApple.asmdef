@@ -1,0 +1,19 @@
+{
+    "name": "com.accelbyte.UnitySDKApple",
+    "rootNamespace": "",
+    "references": [
+        "GUID:95c7e4cb1e3deab4c9a29517591920ba",
+        "GUID:6658e60b3bc56c44b8035af36ad6c511"
+    ],
+    "includePlatforms": [
+        "iOS"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

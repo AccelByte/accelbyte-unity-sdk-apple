@@ -1,0 +1,33 @@
+{
+  "name": "com.accelbyte.unitysdkapple",
+  "displayName": "AccelByte Unity SDK Apple",
+  "version": "0.1.0",
+  "unity": "2019.2",
+  "description": "AccelByte SDK extension for Apple supports",
+  "keywords": [
+    "accelbyte",
+    "third party",
+    "services",
+    "console",
+    "multiplayer",
+    "backend"
+  ],
+  "author": {
+    "name": "AccelByte Inc",
+    "url": "https://accelbyte.io/"
+  },
+  "changelogUrl": "https://github.com/AccelByte/accelbyte-unity-sdk/releases",
+  "documentationUrl": "https://docs.accelbyte.io/gaming-services/services/access/authentication/apple-identity/",
+  "hideInEditor": false,
+  "category": "extensions",
+  "homepage": "https://accelbyte.io/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AccelByte/accelbyte-unity-sdk"
+  },
+  "bugs": "https://github.com/AccelByte/accelbyte-unity-sdk/issues",
+  "type": "library",
+  "dependencies": {
+    "com.accelbyte.unitysdk": "16.24.0"
+  }
+}
