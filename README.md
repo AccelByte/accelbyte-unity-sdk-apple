@@ -1,8 +1,16 @@
 # AccelByte Unity SDK Apple #
-Unity SDK Apple is an extension package to enable Accelbyte SDK support for Apple.
+
+Copyright (c) 2024 AccelByte Inc. All Rights Reserved.
+This is licensed software from AccelByte Inc, for limitations
+and restrictions contact your company contract manager.
+
+# Overview
+Unity SDK Apple is an extension package to enable Accelbyte SDK support for Apple. This plugin support the following features:
 
 ## Prerequisiste ##
 Require ([AccelByte Unity SDK](https://github.com/AccelByte/accelbyte-unity-sdk)) package. Minimum version: 16.24.0.
+
+For more information about configuring AccelByte Unity SDK, see [Install and configure the SDK](https://docs.accelbyte.io/gaming-services/getting-started/setup-game-sdk/unity-sdk/#install-and-configure).
 
 ## How to Install ##
 1. Import "Sign in with Apple Plugin for Unity" from [Asset Store](https://assetstore.unity.com/packages/tools/integration/sign-in-with-apple-plugin-for-unity-152088)
@@ -11,7 +19,19 @@ Require ([AccelByte Unity SDK](https://github.com/AccelByte/accelbyte-unity-sdk)
 4. Add assembly reference of `Assets/AccelByteExtensions/Apple/com.AccelByte.AppleExtension` to your project.
 5. Access AccelByte Apple API from `AccelByte.ThirdParties.Apple.AccelByteApple`
 
-## Sample Implementation ##
+# Features Usage #
+
+## Sign In With Apple ##
+
+We provide easier way to let the player perfrom Sign in With Apple platform.
+Therefore player doesn't need to register a new account to AGS to utilize the AGS features.
+
+## Configure Your Game ##
+
+To integrate Sign in With Apple and AGS to your game, please follow the [official AGS documentation](https://docs.accelbyte.io/gaming-services/services/access/authentication/apple-identity/#set-up-apple-configuration).
+You may skip the `Set up web login` part because this integration is considered in-game login.
+
+### Code Implementation ###
 1. Header Initialization
 
 ```
@@ -44,7 +64,7 @@ private void Update()
     }
 }
 
-private void AppleLogin()
+private void GetAppleIdToken()
 {
     AccelByte.ThirdParties.Apple.AccelByteApple.GetAppleSignInToken().OnSuccess(result =>
     {
