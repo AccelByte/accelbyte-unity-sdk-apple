@@ -8,7 +8,7 @@ and restrictions contact your company contract manager.
 Unity SDK Apple is an extension package to enable Accelbyte SDK support for Apple. This plugin support the following features:
 
 ## Prerequisiste ##
-Require ([AccelByte Unity SDK](https://github.com/AccelByte/accelbyte-unity-sdk)) package. Minimum version: 16.24.0.
+Require ([AccelByte Unity SDK](https://github.com/AccelByte/accelbyte-unity-sdk)) package. Minimum version: 17.5.1
 
 For more information about configuring AccelByte Unity SDK, see [Install and configure the SDK](https://docs.accelbyte.io/gaming-services/getting-started/setup-game-sdk/unity-sdk/#install-and-configure).
 
@@ -97,7 +97,16 @@ private void AGSLogin()
 }
 ```
 
+The full script on the package sample named "Sign in with Apple".
+
 ## In-App Purchasing ##
+
+### Overview ###
+
+There are three kind of `ProductType` based on [Unity Documentation](https://docs.unity3d.com/Manual/UnityIAPDefiningProducts.html). 
+Previously we support synchronize consumable, non-consumable entitlements with AccelByte server.
+And now also support subscription as well.
+However, it requires additional setup through admin portal to change the apple store integration configuration from `V1`(default) into `V2`.
 
 ### Configure Your Game ###
 
@@ -110,29 +119,33 @@ This plugin is tested using UnityPurchasing v4.8.0.
 
 Please refers to official [Unity documentation](https://docs.unity3d.com/Manual/UnityIAPSettingUp.html) on how to install it.
 
+> **Important** : Ensure that the player is already **Logged in** using AGS service before using this feature. You may check player's login status by using this snippet `bool isLoggedIn = AccelByteSDK.GetClientRegistry().GetApi().GetUser().Session.IsValid();` and `isLoggedIn` should return `true`.
+
 ### Code Implementation ###
 1. Sign in With Apple, please refer to [previous part](https://github.com/AccelByte/accelbyte-unity-sdk-apple?tab=readme-ov-file#sign-in-with-apple)
 
 2. Please create `MonoBehavior` class implementing `IDetailedStoreListener`. Unity IAP will handle the purchase and trigger callbacks using this interface. Then prepare the following variables
 ```csharp
-public Button buyButton;
-    
 IStoreController storeController;
-private string productId = "item_gold"; // assume that the registered product id is named Item_gold
-private ProductType productType = ProductType.Consumable; // assume that "item_gold" is a Consumables
+
+public Button BuyGoldButton;
+public Button BuyWeaponButton;
+public Button BuySeasonPassButton;
+
+private string goldProductId = "item_gold"; // assume that the registered consumable product id is named Item_gold
+private ProductType goldProductType = ProductType.Consumable;
+private string weaponProductId = "item_weapon"; // assume that the registered non-consumable product id is named item_weapon
+private ProductType weaponProductType = ProductType.NonConsumable;
+private string seasonPassProductId = "item_season_pass"; // assume that the registered subscription product id is named item_season_pass
+private ProductType seasonPassProductType = ProductType.Subscription;
+
+private AccelByte.Api.User user;
+private AccelByte.Api.Entitlement entitlement;
 ```
 
-3. Prepare a [Button](https://docs.unity3d.com/Packages/com.unity.ugui@1.0/manual/script-Button.html) to trigger the purchasing event. Using Unity Editor's inspector, attach this button into `public Button buyButton;` 
+3. Prepare three [Buttons](https://docs.unity3d.com/Packages/com.unity.ugui@1.0/manual/script-Button.html) to trigger the purchasing event. Using Unity Editor's inspector, attach those buttons into `public Button BuyGoldButton;`, `public Button BuyWeaponButton;`, and `public Button BuySeasonPassButton;`.
 
-4. Prepare a function that will be trigger the purchasing event
-```csharp
-private void BuyGold()
-{
-    storeController.InitiatePurchase(productId);
-}
-```
-
-5. Initialize Purchasing. 
+4. Initialize Purchasing. 
 ```csharp
 void Start()
 {
@@ -143,70 +156,148 @@ void InitializePurchasing()
 {
     var builder = ConfigurationBuilder.Instance(StandardPurchasingModule.Instance());
 
-    builder.AddProduct(productId, productType);
+    //Add products that will be purchasable and indicate its type.
+    builder.AddProduct(goldProductId, goldProductType);
+    builder.AddProduct(weaponProductId, weaponProductType);
+    builder.AddProduct(seasonPassProductId, seasonPassProductType);
     UnityPurchasing.Initialize(this, builder);
 
-    buyButton.onClick.AddListener(BuyGold);
+    // Assign its ApplicationUsername
+    if (!string.IsNullOrEmpty(AccelByteSDK.GetClientRegistry().GetApi().GetUser().Session.UserId))
+    {
+        var uid = System.Guid.Parse(AccelByteSDK.GetClientRegistry().GetApi().GetUser().Session.UserId);
+        appleExtensions.SetApplicationUsername(uid.ToString());
+    }
+    else
+    {
+        Debug.LogError($"Player is not Logged In. Several features may not work properly");
+    }
 }
 
 public void OnInitialized(IStoreController controller, IExtensionProvider extensions)
 {
     Debug.Log("In-App Purchasing successfully initialized");
     storeController = controller;
+    appleExtensions = extensions.GetExtension<IAppleExtensions>();
 }
-``` 
+```
 
-6. Handle Process Purchase. Please note that it **must** return `PurchaseProcessingResult.Pending` because purchased item will be synchronized with AccelByte's Backend. [reference](https://docs.unity3d.com/2021.3/Documentation/Manual/UnityIAPProcessingPurchases.html). If client successfully purchase item from Apple, `ProcessPurchase` will be triggered, else `OnPurchaseFailed` will be triggered
+7. Prepare several functions that will be trigger the purchasing event
+```csharp
+private void BuyGold()
+{
+    storeController.InitiatePurchase(productId);
+}
+
+private void BuyWeapon()
+{
+    storeController.InitiatePurchase(weaponProductId);
+}
+
+private void BuySeasonPass()
+{
+    storeController.InitiatePurchase(seasonPassProductId);
+}
+```
+
+8. Assign each buttons
+```csharp
+void Start()
+{
+    ButtonAssigning();
+}
+
+void ButtonAssigning()
+{
+    BuyGoldButton.onClick.AddListener(BuyGold);
+    BuyWeaponButton.onClick.AddListener(BuyWeapon);
+    BuySeasonPassButton.onClick.AddListener(BuySeasonPass);
+}
+```
+
+9. Handle Process Purchase. Please note that it **must** return `PurchaseProcessingResult.Pending` because purchased item will be synchronized with AccelByte's Backend. [reference](https://docs.unity3d.com/2021.3/Documentation/Manual/UnityIAPProcessingPurchases.html). If client successfully purchase item from Apple, `ProcessPurchase` will be triggered, else `OnPurchaseFailed` will be triggered. Also **note** that subscription is treated differently with consumable and non-consumables.
 ```csharp
 public PurchaseProcessingResult ProcessPurchase(PurchaseEventArgs purchaseEvent)
 {
     var product = purchaseEvent.purchasedProduct;
 
     Debug.Log($"Purchase Complete - Product: {product.definition.id}");
-    AGSEntitlementSync(product);
+    if (product.definition.type == ProductType.Subscription)
+    {
+        AGSSubscriptionEntitlementSync(product);
+    }
+    else
+    {
+        AGSEntitlementSync(product);
+    }
     
     return PurchaseProcessingResult.Pending;
 }
 
-    public void OnPurchaseFailed(Product product, PurchaseFailureReason failureReason)
-    {
-        Debug.LogError($"Purchase failed - Product: '{product.definition.id}', PurchaseFailureReason: {failureReason}");
-    }
+public void OnPurchaseFailed(Product product, PurchaseFailureReason failureReason)
+{
+    Debug.LogError($"Purchase failed - Product: '{product.definition.id}', PurchaseFailureReason: {failureReason}");
+}
 ```
-7. Sync Purchased Product with AGS
+
+10. Sync Purchased Product with AGS
 ```csharp
 private void AGSEntitlementSync(Product purchasedProduct)
 {
     // Please note that Sync will work after the player is logged in using AB service
     try
     {
-        PlatformSyncMobileApple request = new PlatformSyncMobileApple()
-        {
-            productId = purchasedProduct.definition.id,
-            transactionId = purchasedProduct.transactionID,
-            receiptData = JObject.Parse(purchasedProduct.receipt)["Payload"].ToString()
-        };
-        
-        AccelByteSDK.GetClientRegistry().GetApi().GetEntitlement().SyncMobilePlatformPurchaseApple(request
+        string productId = purchasedProduct.definition.id;
+        string transactionId = purchasedProduct.appleOriginalTransactionID;
+        string receiptData = JObject.Parse(purchasedProduct.receipt)["Payload"].ToString();
+
+        AccelByteSDK.GetClientRegistry().GetApi().GetEntitlement().SyncMobilePlatformPurchaseApple(productId
+            , transactionId
+            , receiptData
             , result =>
             {
+                FinalizePurchase(purchasedProduct);
                 if (result.IsError)
                 {
-                    Debug.Log($"{request.productId} failed to sync with AB [{result.Error.Code}]:{result.Error.Message}");
+                    Debug.Log($"{productId} failed to sync with AB [{result.Error.Code}]:{result.Error.Message}");
                     return;
                 }
-                Debug.Log($"{request.productId} is synced with AB");
-                
-                FinalizePurchase(purchasedProduct);
+                Debug.Log($"{productId} is synced with AB");
             });
     }
     catch (Exception e)
     {
+        FinalizePurchase(purchasedProduct);
+        Debug.LogError($"Failed to sync with AB {e.Message}");
+    }
+}
+
+private void AGSSubscriptionEntitlementSync(Product purchasedSubscription)
+{
+    // Please note that Sync will work after the player is logged in using AB service
+    try
+    {
+        AccelByteSDK.GetClientRegistry().GetApi().GetEntitlement().SyncMobilePlatformSubscriptionApple(purchasedSubscription.appleOriginalTransactionID
+            , result =>
+            {
+                FinalizePurchase(purchasedSubscription);
+                if (result.IsError)
+                {
+                    Debug.Log($"{purchasedSubscription.definition.id} failed to sync with AB [{result.Error.Code}]:{result.Error.Message}");
+                    return;
+                }
+                Debug.Log($"{purchasedSubscription.definition.id} is synced with AB");
+            });
+    }
+    catch (Exception e)
+    {                
+        FinalizePurchase(purchasedSubscription);
         Debug.LogError($"Failed to sync with AB {e.Message}");
     }
 }
 ```
-8. Finalize Pending Purchase
+
+11. Finalize Pending Purchase
 ```csharp
 private void FinalizePurchase(Product purchasedProduct)
 {
@@ -215,167 +306,4 @@ private void FinalizePurchase(Product purchasedProduct)
 }
 ```
 
-This is the complete script
-```csharp
-using System;
-using AccelByte.Core;
-using AccelByte.Models;
-using Newtonsoft.Json.Linq;
-using UnityEngine;
-using UnityEngine.Purchasing;
-using UnityEngine.Purchasing.Extension;
-using UnityEngine.UI;
-
-public class InAppPurchaseHandler : MonoBehaviour, IDetailedStoreListener
-{
-    public Button buyButton;
-    
-    IStoreController storeController; // The Unity Purchasing system.
-    private string productId = "item_gold";
-    private ProductType productType = ProductType.Consumable;
-    
-    void Start()
-    {
-        InitializePurchasing();
-    }
-    
-    /// <summary>
-    /// Trigger purchasing initialization
-    /// </summary>
-    void InitializePurchasing()
-    {
-        var builder = ConfigurationBuilder.Instance(StandardPurchasingModule.Instance());
-
-        //Add products that will be purchasable and indicate its type.
-        builder.AddProduct(productId, productType);
-        UnityPurchasing.Initialize(this, builder);
-
-        //Attach a listener to trigger purchasing event
-        buyButton.onClick.AddListener(BuyGold);
-    }
-    
-    /// <summary>
-    /// A callback that will be triggered when the Initialization step is done
-    /// Its part of IDetailedStoreListener
-    /// No need to attach it anywhere
-    /// </summary>
-    public void OnInitialized(IStoreController controller, IExtensionProvider extensions)
-    {
-        Debug.Log("In-App Purchasing successfully initialized");
-        storeController = controller;
-    }
-    
-    /// <summary>
-    /// A callback that will be triggered when the Initialization step is failed
-    /// Its part of IDetailedStoreListener
-    /// No need to attach it anywhere
-    /// </summary>
-    public void OnInitializeFailed(InitializationFailureReason error)
-    {
-        Debug.LogError($"Failed to initialize In-App Purchasing [{error}]");
-    }
-    
-    /// <summary>
-    /// A callback will be triggered when the Initialization step is failed, with detailed message
-    /// Its part of IDetailedStoreListener
-    /// No need to attach it anywhere
-    /// </summary>
-    public void OnInitializeFailed(InitializationFailureReason error, string message)
-    {
-        Debug.LogError($"Failed to initialize In-App Purchasing [{error}]:{message}");
-    }
-    
-    /// <summary>
-    /// A callback will be triggered when the purchasing is success
-    /// Its part of IDetailedStoreListener
-    /// No need to attach it anywhere
-    /// </summary>
-    public PurchaseProcessingResult ProcessPurchase(PurchaseEventArgs purchaseEvent)
-    {
-        // Retrieve the purchased product
-        var product = purchaseEvent.purchasedProduct;
-
-        Debug.Log($"Purchase Complete - Product: {product.definition.id}");
-        AGSEntitlementSync(product);
-        
-        // Because we're going to sync it with AB's server, it must return PurchaseProcessingResult.Pending
-        // For detailed explanation, please refer to : https://docs.unity3d.com/2021.3/Documentation/Manual/UnityIAPProcessingPurchases.html
-        return PurchaseProcessingResult.Pending;
-    }
-    
-    /// <summary>
-    /// A callback will be triggered when the purchasing is failed
-    /// Its part of IDetailedStoreListener
-    /// No need to attach it anywhere
-    /// </summary>
-    public void OnPurchaseFailed(Product product, PurchaseFailureReason failureReason)
-    {
-        Debug.LogError($"Purchase failed - Product: '{product.definition.id}', PurchaseFailureReason: {failureReason}");
-    }
-    
-    /// <summary>
-    /// A callback will be triggered when the purchasing is failed, with a failure Description
-    /// Its part of IDetailedStoreListener
-    /// No need to attach it anywhere
-    /// </summary>
-    public void OnPurchaseFailed(Product product, PurchaseFailureDescription failureDescription)
-    {
-        Debug.Log($"Purchase failed - Product: '{product.definition.id}', PurchaseFailureDescription: {failureDescription}");
-    }
-    
-    /// <summary>
-    /// Confirm the pending purchase after sync with AB is done
-    /// It is required because there is a synchronization step
-    /// </summary>
-    private void FinalizePurchase(Product purchasedProduct)
-    {
-        Debug.Log($"Confirm Pending Purchase for: {purchasedProduct.definition.id}");
-        storeController.ConfirmPendingPurchase(purchasedProduct);
-    }
-    
-    /// <summary>
-    /// This function will trigger the purchasing event
-    /// </summary>
-    private void BuyGold()
-    {
-        storeController.InitiatePurchase(productId);
-    }
-
-    /// <summary>
-    /// Synchronize the purchased product with AccelByte's server using AccelByte's SDK
-    /// </summary>
-    /// <param name="purchasedProduct">A successful purchased product</param>
-    private void AGSEntitlementSync(Product purchasedProduct)
-    {
-        // Please note that Sync will work after the player is logged in using AB service
-        // Please refer to https://github.com/AccelByte/accelbyte-unity-sdk-apple?tab=readme-ov-file#sign-in-with-apple for implementation
-        try
-        {
-            PlatformSyncMobileApple request = new PlatformSyncMobileApple()
-            {
-                productId = purchasedProduct.definition.id,
-                transactionId = purchasedProduct.transactionID,
-                receiptData = JObject.Parse(purchasedProduct.receipt)["Payload"].ToString()
-            };
-            
-            AccelByteSDK.GetClientRegistry().GetApi().GetEntitlement().SyncMobilePlatformPurchaseApple(request
-                , result =>
-                {
-                    if (result.IsError)
-                    {
-                        Debug.Log($"{request.productId} failed to sync with AB [{result.Error.Code}]:{result.Error.Message}");
-                        return;
-                    }
-                    Debug.Log($"{request.productId} is synced with AB");
-                    
-                    FinalizePurchase(purchasedProduct);
-                });
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"Failed to sync with AB {e.Message}");
-        }
-    }
-}
-
-```
+The full script on the package sample named "In App Purchase".

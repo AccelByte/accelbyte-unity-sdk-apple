@@ -1,7 +1,7 @@
 {
   "name": "com.accelbyte.unitysdkapple",
   "displayName": "AccelByte Unity SDK Apple",
-  "version": "0.1.0",
+  "version": "1.0.2",
   "unity": "2019.2",
   "description": "AccelByte SDK extension for Apple supports",
   "keywords": [
@@ -16,18 +16,30 @@
     "name": "AccelByte Inc",
     "url": "https://accelbyte.io/"
   },
-  "changelogUrl": "https://github.com/AccelByte/accelbyte-unity-sdk/releases",
-  "documentationUrl": "https://docs.accelbyte.io/gaming-services/services/access/authentication/apple-identity/",
+  "changelogUrl": "https://docs.accelbyte.io/gaming-services/knowledge-base/release-notes",
+  "documentationUrl": "https://docs.accelbyte.io/gaming-services/services/access/reference/authentication/apple-identity",
   "hideInEditor": false,
   "category": "extensions",
   "homepage": "https://accelbyte.io/",
   "repository": {
     "type": "git",
-    "url": "https://github.com/AccelByte/accelbyte-unity-sdk"
+    "url": "https://github.com/AccelByte/accelbyte-unity-sdk-apple"
   },
-  "bugs": "https://github.com/AccelByte/accelbyte-unity-sdk/issues",
+  "bugs": "https://github.com/AccelByte/accelbyte-unity-sdk-apple/issues",
   "type": "library",
   "dependencies": {
     "com.accelbyte.unitysdk": "16.24.0"
-  }
+  },
+  "samples": [
+    {
+      "displayName": "Sign in with Apple",
+      "description": "Contains sample on how to Login to AGS with Apple platform",
+      "path": "Samples~/SignInWithApple"
+    },
+    {
+      "displayName": "In App Purchase",
+      "description": "Contains sample on how to utilize In App Purchase with AGS",
+      "path": "Samples~/InAppPurchase"
+    }
+  ]
 }
